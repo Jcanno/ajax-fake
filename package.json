@@ -1,0 +1,17 @@
+{
+  "name": "ajax-faker",
+  "version": "0.0.1",
+  "main": "index.js",
+  "repository": "git@github.com:Jcanno/ajax-faker.git",
+  "license": "MIT",
+  "description": "Ajax Faker For Mock/Listen/Modify Response",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.32.0",
+    "@typescript-eslint/parser": "^4.32.0",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "prettier": "^2.4.1",
+    "typescript": "^4.4.3"
+  }
+}
