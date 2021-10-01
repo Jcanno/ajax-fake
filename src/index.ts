@@ -135,5 +135,5 @@ export function unHack() {
 }
 
 export function getOriginXHR() {
-  return window[ORIGIN_XHR] || window.XMLHttpRequest
+  return window[ORIGIN_XHR] ?? window.XMLHttpRequest
 }

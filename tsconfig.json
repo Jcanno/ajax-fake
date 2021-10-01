@@ -7,7 +7,8 @@
     "removeComments": false,
     "declaration": true,
     "declarationMap": false,
-    "declarationDir": "./types"
+    "declarationDir": "./types",
+    "outDir": "./dist"
   },
   "include": ["./src/**/*"]
 }
