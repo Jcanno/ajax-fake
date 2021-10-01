@@ -1,10 +1,10 @@
 {
-  "name": "ajax-faker",
+  "name": "hack-ajax",
   "version": "0.0.1",
   "main": "index.js",
-  "repository": "git@github.com:Jcanno/ajax-faker.git",
+  "repository": "git@github.com:Jcanno/hack-ajax.git",
   "license": "MIT",
-  "description": "Ajax Faker For Mock/Listen/Modify Response",
+  "description": "Mock/Listen/Hack for Ajax",
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.32.0",
     "@typescript-eslint/parser": "^4.32.0",

@@ -8,13 +8,8 @@ module.exports = {
   },
   extends: ['plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
   rules: {
-    'no-empty-function': 0,
     '@typescript-eslint/no-explicit-any': 0,
-    '@typescript-eslint/no-empty-function': 0,
     '@typescript-eslint/explicit-function-return-type': 0,
-    '@typescript-eslint/no-use-before-define': ['error', { functions: false, classes: false }],
-    'prefer-const': 0,
-    '@typescript-eslint/interface-name-prefix': 0,
     '@typescript-eslint/explicit-module-boundary-types': 0,
   },
   parser: '@typescript-eslint/parser',
