@@ -13,7 +13,7 @@ type MatchItem = {
   status?: number
 }
 
-interface HackXHR extends XMLHttpRequest {
+interface FakeXhr extends XMLHttpRequest {
   config: Map<any, any>
 }
 
@@ -29,7 +29,7 @@ const getRequestTimeout = () => {
 }
 const ORIGIN_XHR = Symbol()
 
-class HackXMLHttpRequest {
+class FakeXMLHttpRequest {
   static config = new Map()
 
   xhr: XMLHttpRequest = null
@@ -41,7 +41,7 @@ class HackXMLHttpRequest {
   }
 
   private proxyXhr(originXhr: XMLHttpRequest) {
-    const xhrMethods = this.hackXhrMethods()
+    const xhrMethods = this.FakeXhrMethods()
     for (const property in originXhr) {
       if (xhrMethods[property]) {
         xhrMethods[property].call(this)
@@ -53,7 +53,7 @@ class HackXMLHttpRequest {
   }
 
   /**
-   * proxy all origin xhr property to HackXMLHttpRequest instance
+   * proxy all origin xhr property to FakeXMLHttpRequest instance
    * @param originXhr
    */
   private proxyOriginXhrProperties(property) {
@@ -75,11 +75,11 @@ class HackXMLHttpRequest {
     }
   }
 
-  private hackXhrMethods() {
+  private FakeXhrMethods() {
     return {
       open: function () {
         this.open = function (method, url, async, username, password) {
-          const requestMatch = HackXMLHttpRequest.config.get('requestMatch')
+          const requestMatch = FakeXMLHttpRequest.config.get('requestMatch')
           if (typeof requestMatch === 'function') {
             this.matchItem = requestMatch({ requestMethod: method, requestUrl: url })
           }
@@ -125,32 +125,32 @@ class HackXMLHttpRequest {
   }
 }
 
-export function hack(
+export function Fake(
   options: {
     force?: boolean
     onRequestMatch?: RequestMatchFn
   } = {},
-): HackXHR {
+): FakeXhr {
   const { force = false, onRequestMatch } = options
   if (typeof onRequestMatch === 'function') {
-    HackXMLHttpRequest.config.set('requestMatch', onRequestMatch)
+    FakeXMLHttpRequest.config.set('requestMatch', onRequestMatch)
   }
 
   window[ORIGIN_XHR] = window.XMLHttpRequest
   if (typeof force === 'boolean' && force) {
     Object.defineProperty(window, 'XMLHttpRequest', {
-      value: HackXMLHttpRequest,
+      value: FakeXMLHttpRequest,
       enumerable: true,
       writable: false,
     })
   } else {
-    ;(window as any).XMLHttpRequest = HackXMLHttpRequest
+    ;(window as any).XMLHttpRequest = FakeXMLHttpRequest
   }
 
-  return HackXMLHttpRequest as any
+  return FakeXMLHttpRequest as any
 }
 
-export function unHack() {
+export function unFake() {
   if (!!window[ORIGIN_XHR]) {
     Object.defineProperty(window, 'XMLHttpRequest', {
       value: window[ORIGIN_XHR],

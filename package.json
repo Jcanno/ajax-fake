@@ -1,19 +1,32 @@
 {
-  "name": "hack-ajax",
-  "version": "0.0.1",
-  "main": "index.js",
-  "repository": "git@github.com:Jcanno/hack-ajax.git",
-  "license": "MIT",
-  "description": "Hack for Ajax",
+  "name": "ajax-fake",
+  "version": "0.0.2",
+  "description": "Ajax Facker",
+  "main": "dist/index.js",
+  "module": "es/index.js",
   "scripts": {
     "build": "rollup -c",
     "tsc": "tsc"
   },
+  "types": "types/index.d.ts",
+  "typings": "types/index.d.ts",
+  "files": [
+    "dist",
+    "es",
+    "types"
+  ],
+  "license": "MIT",
+  "author": "Jacano",
+  "bugs": {
+    "url": "https://github.com/Jcanno/ajax-fake/issues"
+  },
+  "homepage": "https://github.com/Jcanno/ajax-fake#readme",
   "keywords": [
     "ajax",
     "request",
-    "hack",
-    "intercept"
+    "mock",
+    "intercept",
+    "faker"
   ],
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^4.32.0",

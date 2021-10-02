@@ -1,17 +1,17 @@
-# hack-ajax
+# ajax-fake
 
-Hack for Ajax
+Ajax Faker
 
 ## Feature
 
-- support normal and force hack
+- support normal and force fake
 - support modify ajax response/status
 - support mock with simulate timeout
 
 ## Example
 
 ```js
-import { hack, unHack, getOriginXHR } from 'hack-ajax'
+import { fake } from 'ajax-fake'
 
 const mockData = [
   {
@@ -21,7 +21,7 @@ const mockData = [
   },
 ]
 
-hack({
+fake({
   // XMLHttpRequest can's be written if true
   force: true,
   // custom request match
