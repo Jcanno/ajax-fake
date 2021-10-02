@@ -5,7 +5,7 @@ type MatchItem = {
   response?: string
   /** if matched, go on mock, default false */
   matched?: boolean
-  /** send real XMLHTTPRequest falg, default false */
+  /** send real XMLHttpRequest falg, default false */
   sendRealXhr?: boolean
   /** set request timeout, default 500 - 1000 */
   timeout?: number
