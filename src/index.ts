@@ -1,5 +1,32 @@
-import { ONLY_GET_RESPONSE_PROPERTIES, XHR_STATES } from './enums'
+import { HTTP_STATUS_CODES, ONLY_GET_RESPONSE_PROPERTIES, XHR_STATES } from './enums'
 
+type MatchItem = {
+  /** override response text */
+  response?: string
+  /** if matched, go on mock, default false */
+  matched?: boolean
+  /** send real XMLHTTPRequest falg, default false */
+  sendRealXhr?: boolean
+  /** set request timeout, default 500 - 1000 */
+  timeout?: number
+  /** set response status */
+  status?: number
+}
+
+interface HackXHR extends XMLHttpRequest {
+  config: Map<any, any>
+}
+
+type RequestMatchFn = (requestInfo: { requestUrl: string; requestMethod: string }) => MatchItem
+
+/**
+ * simulate request time, range 500 - 1000
+ * @returns timeout
+ */
+const getRequestTimeout = () => {
+  const randomNum = Math.random()
+  return (randomNum > 0.5 ? randomNum : randomNum + 0.5) * 1000
+}
 const ORIGIN_XHR = Symbol()
 
 class HackXMLHttpRequest {
@@ -33,6 +60,7 @@ class HackXMLHttpRequest {
     if (typeof this.xhr[property] === 'function') {
       this[property] = this.xhr[property].bind(this.xhr)
     } else if (ONLY_GET_RESPONSE_PROPERTIES.includes(property)) {
+      // make Only Getter Properties can be modified
       Object.defineProperty(this, property, {
         get: () => (this[`_${property}`] == undefined ? this.xhr[property] : this[`_${property}`]),
         set: (val) => (this[`_${property}`] = val),
@@ -59,25 +87,35 @@ class HackXMLHttpRequest {
           this.xhr.open(method, url, async, username, password)
         }
       },
-      // open: function
       send: function () {
         this.send = (data) => {
-          const { matched = false, response = '{}' } = this.matchItem
+          const {
+            matched = false,
+            response = '{}',
+            sendRealXhr = false,
+            timeout,
+            status,
+          } = this.matchItem as MatchItem
           if (matched) {
+            sendRealXhr && this.xhr.send(data)
             this.readyState = XHR_STATES.HEADERS_RECEIVED
             this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
             this.readyState = XHR_STATES.LOADING
             this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
-            setTimeout(() => {
-              this.status = 200
-              this.responseText = this.response =
-                typeof response === 'object' ? JSON.stringify(response) : response
+            setTimeout(
+              () => {
+                this.status = HTTP_STATUS_CODES[status] ? status : 200
+                this.statusText = HTTP_STATUS_CODES[status] ?? HTTP_STATUS_CODES[200]
+                this.responseText = this.response =
+                  typeof response === 'object' ? JSON.stringify(response) : response
 
-              this.readyState = XHR_STATES.DONE
-              this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
-              this.dispatchEvent(new Event('load' /*, false, false, that*/))
-              this.dispatchEvent(new Event('loadend' /*, false, false, that*/))
-            }, 2000)
+                this.readyState = XHR_STATES.DONE
+                this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
+                this.dispatchEvent(new Event('load' /*, false, false, that*/))
+                this.dispatchEvent(new Event('loadend' /*, false, false, that*/))
+              },
+              typeof timeout === 'number' ? timeout : getRequestTimeout(),
+            )
           } else {
             this.xhr.send(data)
           }
@@ -86,17 +124,6 @@ class HackXMLHttpRequest {
     }
   }
 }
-
-type MatchItem = {
-  response?: string
-  matched?: boolean
-}
-
-interface HackXHR extends XMLHttpRequest {
-  config: Map<any, any>
-}
-
-type RequestMatchFn = (requestInfo: { requestUrl: string; requestMethod: string }) => MatchItem
 
 export function hack(
   options: {
