@@ -1,3 +1,4 @@
+/** states */
 export const XHR_STATES = {
   // The object has been constructed.
   UNSENT: 0,
@@ -11,7 +12,23 @@ export const XHR_STATES = {
   DONE: 4,
 }
 
-export const ONLY_GET_RESPONSE_PROPERTIES = [
+/** event handler */
+export const XHR_ON_EVENT_HANDLERS = [
+  'onabort',
+  'onerror',
+  'onload',
+  'onloadend',
+  'onloadstart',
+  'onprogress',
+  'onreadystatechange',
+  'ontimeout',
+]
+
+/** event handler */
+export const XHR_NON_ON_EVENT_HANDLERS = XHR_ON_EVENT_HANDLERS.map((event) => event.slice(2))
+
+/** request properties */
+export const XHR_RESPONSE_PROPERTIES = [
   'readyState',
   'responseURL',
   'status',
@@ -19,8 +36,12 @@ export const ONLY_GET_RESPONSE_PROPERTIES = [
   'response',
   'responseText',
   'responseXML',
+  'responseType',
 ]
 
+export const XHR_REQUEST_PROPERTIES = ['timeout', 'withCredentials']
+
+/** http status codes */
 export const HTTP_STATUS_CODES = {
   100: 'Continue',
   101: 'Switching Protocols',
