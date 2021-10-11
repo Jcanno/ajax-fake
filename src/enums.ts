@@ -1,4 +1,4 @@
-/** states */
+/** xhr states */
 export const XHR_STATES = {
   // The object has been constructed.
   UNSENT: 0,
@@ -12,7 +12,7 @@ export const XHR_STATES = {
   DONE: 4,
 }
 
-/** event handler */
+/** event handler with on */
 export const XHR_ON_EVENT_HANDLERS = [
   'onabort',
   'onerror',
@@ -24,7 +24,7 @@ export const XHR_ON_EVENT_HANDLERS = [
   'ontimeout',
 ]
 
-/** event handler */
+/** event handler without on */
 export const XHR_NON_ON_EVENT_HANDLERS = XHR_ON_EVENT_HANDLERS.map((event) => event.slice(2))
 
 /** request properties */

@@ -20,11 +20,11 @@ type MatchItem = {
   status?: number
 }
 
+type RequestMatchFn = (requestInfo: { requestUrl: string; requestMethod: string }) => MatchItem
+
 interface FakeXhr extends XMLHttpRequest {
   config: Map<'requestMatch', RequestMatchFn>
 }
-
-type RequestMatchFn = (requestInfo: { requestUrl: string; requestMethod: string }) => MatchItem
 
 /**
  * simulate request time, range 500 - 1000
@@ -64,6 +64,7 @@ const EventTarget = {
 }
 
 const FakeXMLHttpRequest = function FakeXMLHttpRequest() {
+  // init fake xhr properties
   XHR_ON_EVENT_HANDLERS.forEach((event) => {
     this[event] = null
   })
@@ -125,15 +126,18 @@ const FakeXMLHttpRequestPrototype = {
     }.bind(this)
     typeof async !== 'boolean' && (async = true)
 
+    // if no matched, send real xhr
     if (!this._matchItem?.matched) {
       this._xhr = createXhr()
 
+      // listen real xhr event handler, sync real xhr properties to fake xhr
       for (let i = 0; i < XHR_NON_ON_EVENT_HANDLERS.length; i++) {
         this._xhr.addEventListener(XHR_NON_ON_EVENT_HANDLERS[i], function (event) {
-          bindEventHandle(event, this._xhr)
+          bindEventHandle(event, this)
         })
       }
 
+      // sync with timeout / withCredentials
       for (let j = 0; j < XHR_REQUEST_PROPERTIES.length; j++) {
         try {
           this._xhr[XHR_REQUEST_PROPERTIES[j]] = this[XHR_REQUEST_PROPERTIES[j]]
@@ -144,8 +148,10 @@ const FakeXMLHttpRequestPrototype = {
       return
     }
 
+    // simulate xhr state change
     this.readyState = XHR_STATES.OPENED
     this.dispatchEvent(new Event('readystatechange' /*, false, false, this*/))
+    // send real xhr if true in fake xhr
     if (this._matchItem?.sendRealXhr) {
       this._xhr = createXhr()
       this._xhr.open(method, url, async, username, password)
@@ -154,6 +160,7 @@ const FakeXMLHttpRequestPrototype = {
   send(data) {
     const { matched, response, sendRealXhr, timeout, status } = this._matchItem as MatchItem
 
+    // no matched, just send data
     if (!matched) {
       this._xhr.send(data)
       return
@@ -200,8 +207,11 @@ const FakeXMLHttpRequestPrototype = {
     }
 
     const requestHeaders = this._requestHeaders
-    if (requestHeaders[name]) requestHeaders[name] += ',' + value
-    else requestHeaders[name] = value
+    if (requestHeaders[name]) {
+      requestHeaders[name] += ',' + value
+    } else {
+      requestHeaders[name] = value
+    }
   },
   getResponseHeader: function (name) {
     if (!this._matchItem?.matched) {
@@ -239,7 +249,9 @@ export function fake(
     FakeXMLHttpRequest.config.set('requestMatch', onRequestMatch)
   }
 
+  // cache origin XHR
   window[ORIGIN_XHR] = window.XMLHttpRequest
+  // we don't want other code modify xhr with force
   if (typeof force === 'boolean' && force) {
     Object.defineProperty(window, 'XMLHttpRequest', {
       value: FakeXMLHttpRequest,
