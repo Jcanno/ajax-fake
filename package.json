@@ -1,6 +1,6 @@
 {
   "name": "ajax-fake",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Ajax Facker",
   "main": "dist/ajax-fake.min.js",
   "module": "es/index.js",
