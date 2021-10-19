@@ -35,7 +35,9 @@ const getRequestTimeout = () => {
   return (randomNum > 0.5 ? randomNum : randomNum + 0.5) * 1000
 }
 const ORIGIN_XHR = Symbol()
+const MATCHITEM = Symbol()
 
+// event listener
 const EventTarget = {
   addEventListener: function addEventListener(type, handle) {
     const events = this._events[type] || (this._events[type] = [])
@@ -85,7 +87,7 @@ const FakeXMLHttpRequest = function FakeXMLHttpRequest() {
   this._events = {}
   this._requestHeaders = {}
   this._responseHeaders = {}
-  this._matchItem = {
+  this[MATCHITEM] = {
     matched: false,
     response: '{}',
     sendRealXhr: false,
@@ -108,9 +110,9 @@ const FakeXMLHttpRequestPrototype = {
     const requestMatch = FakeXMLHttpRequest.config.get('requestMatch')
     if (typeof requestMatch === 'function') {
       try {
-        this._matchItem = Object.assign(
+        this[MATCHITEM] = Object.assign(
           {},
-          this._matchItem,
+          this[MATCHITEM],
           requestMatch({ requestMethod: method, requestUrl: url }),
         )
       } catch (error) {}
@@ -127,22 +129,24 @@ const FakeXMLHttpRequestPrototype = {
     typeof async !== 'boolean' && (async = true)
 
     // if no matched, send real xhr
-    if (!this._matchItem?.matched) {
+    if (!this[MATCHITEM]?.matched) {
       this._xhr = createXhr()
 
       // listen real xhr event handler, sync real xhr properties to fake xhr
-      for (let i = 0; i < XHR_NON_ON_EVENT_HANDLERS.length; i++) {
-        this._xhr.addEventListener(XHR_NON_ON_EVENT_HANDLERS[i], function (event) {
+      XHR_NON_ON_EVENT_HANDLERS.forEach((handler) => {
+        this._xhr.addEventListener(handler, function (event) {
+          // below this means this._xhr
           bindEventHandle(event, this)
         })
-      }
+        // bind this means FakeXMLHttpRequest
+      }, this)
 
       // sync with timeout / withCredentials
-      for (let j = 0; j < XHR_REQUEST_PROPERTIES.length; j++) {
+      XHR_REQUEST_PROPERTIES.forEach((property) => {
         try {
-          this._xhr[XHR_REQUEST_PROPERTIES[j]] = this[XHR_REQUEST_PROPERTIES[j]]
+          this._xhr[property] = this[property]
         } catch (e) {}
-      }
+      })
 
       this._xhr.open(method, url, async, username, password)
       return
@@ -152,13 +156,13 @@ const FakeXMLHttpRequestPrototype = {
     this.readyState = XHR_STATES.OPENED
     this.dispatchEvent(new Event('readystatechange' /*, false, false, this*/))
     // send real xhr if true in fake xhr
-    if (this._matchItem?.sendRealXhr) {
+    if (this[MATCHITEM]?.sendRealXhr) {
       this._xhr = createXhr()
       this._xhr.open(method, url, async, username, password)
     }
   },
   send(data) {
-    const { matched, response, sendRealXhr, timeout, status } = this._matchItem as MatchItem
+    const { matched, response, sendRealXhr, timeout, status } = this[MATCHITEM] as MatchItem
 
     // no matched, just send data
     if (!matched) {
@@ -189,7 +193,8 @@ const FakeXMLHttpRequestPrototype = {
     )
   },
   abort: function abort() {
-    if (!this._matchItem?.matched) {
+    // check matched
+    if (!this[MATCHITEM]?.matched) {
       this._xhr.abort()
       return
     }
@@ -200,8 +205,10 @@ const FakeXMLHttpRequestPrototype = {
   },
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   overrideMimeType: function (/*mime*/) {},
+  // set request header
   setRequestHeader: function (name, value) {
-    if (!this._matchItem?.matched || this._matchItem?.sendRealXhr) {
+    // check matched or sendRealXhr is true
+    if (!this[MATCHITEM]?.matched || this[MATCHITEM]?.sendRealXhr) {
       this._xhr.setRequestHeader(name, value)
       return
     }
@@ -214,18 +221,18 @@ const FakeXMLHttpRequestPrototype = {
     }
   },
   getResponseHeader: function (name) {
-    if (!this._matchItem?.matched) {
+    if (!this[MATCHITEM]?.matched) {
       return this._xhr.getResponseHeader(name)
     }
 
     return this._responseHeaders[name.toLowerCase()]
   },
   getAllResponseHeaders: function () {
-    if (!this._matchItem?.matched) {
+    if (!this[MATCHITEM]?.matched) {
       return this._xhr.getAllResponseHeaders()
     }
 
-    const responseHeaders = this.responseHeaders
+    const responseHeaders = this._responseHeaders
     let headers = ''
     for (const h in responseHeaders) {
       if (!responseHeaders.hasOwnProperty(h)) continue
