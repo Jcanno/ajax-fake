@@ -20,10 +20,10 @@ type MatchItem = {
   status?: number
 }
 
-type RequestMatchFn = (requestInfo: { requestUrl: string; requestMethod: string }) => MatchItem
+type onRequestMatchFn = (requestInfo: { requestUrl: string; requestMethod: string }) => MatchItem
 
 interface FakeXhr extends XMLHttpRequest {
-  config: Map<'requestMatch', RequestMatchFn>
+  config: Map<'onRequestMatch', onRequestMatchFn>
 }
 
 /**
@@ -89,7 +89,7 @@ const FakeXMLHttpRequest = function FakeXMLHttpRequest() {
   this._responseHeaders = {}
   this[MATCHITEM] = {
     matched: false,
-    response: '{}',
+    response: null,
     sendRealXhr: false,
     timeout: 'default',
     status: 200,
@@ -107,17 +107,18 @@ FakeXMLHttpRequest.config = new Map()
 const FakeXMLHttpRequestPrototype = {
   ...XHR_STATES,
   open(method, url, async, username, password) {
-    const requestMatch = FakeXMLHttpRequest.config.get('requestMatch')
-    if (typeof requestMatch === 'function') {
+    const onRequestMatch = FakeXMLHttpRequest.config.get('onRequestMatch')
+    if (typeof onRequestMatch === 'function') {
       try {
         this[MATCHITEM] = Object.assign(
           {},
           this[MATCHITEM],
-          requestMatch({ requestMethod: method, requestUrl: url }),
+          onRequestMatch({ requestMethod: method, requestUrl: url }),
         )
       } catch (error) {}
     }
 
+    // sync property by real xhr bind to FakeXMLHttpRequest
     const bindEventHandle = function handle(event, xhr) {
       for (let i = 0; i < XHR_RESPONSE_PROPERTIES.length; i++) {
         try {
@@ -248,12 +249,12 @@ Object.setPrototypeOf(FakeXMLHttpRequestPrototype, EventTarget)
 export function fake(
   options: {
     force?: boolean
-    onRequestMatch?: RequestMatchFn
+    onRequestMatch?: onRequestMatchFn
   } = {},
 ) {
   const { force = false, onRequestMatch } = options
   if (typeof onRequestMatch === 'function') {
-    FakeXMLHttpRequest.config.set('requestMatch', onRequestMatch)
+    FakeXMLHttpRequest.config.set('onRequestMatch', onRequestMatch)
   }
 
   // cache origin XHR

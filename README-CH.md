@@ -1,12 +1,12 @@
 # ajax-fake
 
-English|[简体中文](https://github.com/Jcanno/ajax-fake/blob/master/README-CH.md)
+[English](https://github.com/Jcanno/ajax-fake)|简体中文
 
-Do something with ajax fake.
+模拟 ajax 请求
 
-Support mock ajax response, status, timeout.
+支持模拟 ajax 响应数据、状态码、请求时间
 
-## Example
+## 例子
 
 ```js
 import { fake } from 'ajax-fake'
@@ -20,11 +20,11 @@ const mockData = [
 ]
 
 fake({
-  // XMLHttpRequest can's be written if true
+  // 开启force，原始XMLHttpRequest对象不会被更改
   force: true,
-  // custom request match
+  // 请求匹配方法
   onRequestMatch: ({ requestMethod, requestUrl }) => {
-    // find matched item
+    // 根据mockData查找匹配的请求
     const matchedItem = mockData.find((item) => {
       const { path, method } = item
       return requestMethod.toUpperCase() === method.toUpperCase() && requestUrl === path
