@@ -2,9 +2,7 @@
 
 [English](https://github.com/Jcanno/ajax-fake)|简体中文
 
-模拟 ajax 请求
-
-支持模拟 ajax 响应数据、状态码、请求时间
+`ajax-fake`可以拦截原生 ajax 请求，我们可以借助它做一些`极客`的事，例如模拟 ajax 响应数据、状态码、请求时间等
 
 ## 例子
 

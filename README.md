@@ -1,10 +1,8 @@
 # ajax-fake
 
-English|[简体中文](https://github.com/Jcanno/ajax-fake/blob/master/README-CH.md)
+English|[简体中文](https://github.com/Jcanno/ajax-fake/blob/master/README.zh-CN.md)
 
-Do something with ajax fake.
-
-Support mock ajax response, status, timeout.
+We can use `ajax-fake` to intercept native ajax to do something hacking, such as mocking ajax response, status, timeout and so on.
 
 ## Example
 
