@@ -7,7 +7,7 @@
 ## 例子
 
 ```js
-import { fake, unFake } from 'ajax-fake'
+import { fake, unfake } from 'ajax-fake'
 
 const mockData = [
   {
@@ -38,7 +38,7 @@ fake({
         // 这个配置是为了让请求根据有欺骗性
         sendRealXhr: true,
         status: 200,
-        timeout: 2000,
+        delay: 2000,
       }
     } else {
       return {
@@ -50,5 +50,5 @@ fake({
 })
 
 // 取消ajax请求拦截
-unFake()
+unfake()
 ```

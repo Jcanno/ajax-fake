@@ -164,7 +164,7 @@ const FakeXMLHttpRequestPrototype = {
     }
   },
   send(data) {
-    const { matched, response, sendRealXhr, delay: timeout, status } = this[MATCHITEM] as MatchItem
+    const { matched, response, sendRealXhr, delay, status } = this[MATCHITEM] as MatchItem
 
     // no matched, just send data
     if (!matched) {
@@ -191,7 +191,7 @@ const FakeXMLHttpRequestPrototype = {
         this.dispatchEvent(new Event('load' /*, false, false, that*/))
         this.dispatchEvent(new Event('loadend' /*, false, false, that*/))
       },
-      typeof timeout === 'number' ? timeout : getRequestDelay(),
+      typeof delay === 'number' ? delay : getRequestDelay(),
     )
   },
   abort: function abort() {
