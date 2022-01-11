@@ -2,12 +2,12 @@
 
 English|[简体中文](https://github.com/Jcanno/ajax-fake/blob/master/README.zh-CN.md)
 
-We can use `ajax-fake` to intercept native ajax to do something hacking, such as mocking ajax response, status, timeout and so on.
+We can use `ajax-fake` to intercept native ajax to do something hacking, such as mocking ajax response, status, delay and so on.
 
 ## Example
 
 ```js
-import { fake, unFake } from 'ajax-fake'
+import { fake, unfake } from 'ajax-fake'
 
 const mockData = [
   {
@@ -38,7 +38,7 @@ fake({
         // the option intents to make request more tricky
         sendRealXhr: true,
         status: 200,
-        timeout: 2000,
+        delay: 2000,
       }
     } else {
       return {
@@ -50,5 +50,5 @@ fake({
 })
 
 // cancel ajax request intercept
-unFake()
+unfake()
 ```
