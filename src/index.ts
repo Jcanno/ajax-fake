@@ -12,7 +12,7 @@ type MatchItem = {
   response?: string
   /** if matched, go on mock, default false */
   matched?: boolean
-  /** send real XMLHttpRequest falg, default false */
+  /** send real XMLHttpRequest flag, default false */
   sendRealXhr?: boolean
   /** set request delay, default 500 - 1000 */
   delay?: number
