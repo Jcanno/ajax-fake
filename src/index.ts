@@ -14,8 +14,8 @@ type MatchItem = {
   matched?: boolean
   /** send real XMLHttpRequest falg, default false */
   sendRealXhr?: boolean
-  /** set request timeout, default 500 - 1000 */
-  timeout?: number
+  /** set request delay, default 500 - 1000 */
+  delay?: number
   /** set response status, default 200 */
   status?: number
 }
@@ -28,12 +28,13 @@ interface FakeXhr extends XMLHttpRequest {
 
 /**
  * simulate request time, range 500 - 1000
- * @returns timeout
+ * @returns delay
  */
-const getRequestTimeout = () => {
+const getRequestDelay = () => {
   const randomNum = Math.random()
   return (randomNum > 0.5 ? randomNum : randomNum + 0.5) * 1000
 }
+
 const ORIGIN_XHR = Symbol()
 const MATCHITEM = Symbol()
 
@@ -163,7 +164,7 @@ const FakeXMLHttpRequestPrototype = {
     }
   },
   send(data) {
-    const { matched, response, sendRealXhr, timeout, status } = this[MATCHITEM] as MatchItem
+    const { matched, response, sendRealXhr, delay: timeout, status } = this[MATCHITEM] as MatchItem
 
     // no matched, just send data
     if (!matched) {
@@ -190,7 +191,7 @@ const FakeXMLHttpRequestPrototype = {
         this.dispatchEvent(new Event('load' /*, false, false, that*/))
         this.dispatchEvent(new Event('loadend' /*, false, false, that*/))
       },
-      typeof timeout === 'number' ? timeout : getRequestTimeout(),
+      typeof timeout === 'number' ? timeout : getRequestDelay(),
     )
   },
   abort: function abort() {
@@ -271,7 +272,7 @@ export function fake(
   }
 }
 
-export function unFake() {
+export function unfake() {
   if (!!window[ORIGIN_XHR]) {
     Object.defineProperty(window, 'XMLHttpRequest', {
       value: window[ORIGIN_XHR],
