@@ -8,7 +8,8 @@
     "declaration": true,
     "declarationMap": false,
     "declarationDir": "dist/types",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "strictNullChecks": true
   },
   "include": ["./src/**/*"]
 }

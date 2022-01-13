@@ -6,7 +6,6 @@
   "module": "dist/es/index.js",
   "scripts": {
     "build": "rollup -c",
-    "prebuild": "rm -rf es dist types",
     "tsc": "tsc"
   },
   "types": "dist/types/index.d.ts",

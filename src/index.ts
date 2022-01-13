@@ -11,7 +11,7 @@ import { getRequestDelay, noop } from './utils'
 import { EventTarget } from './event'
 import { hook, InterceptManager } from './hook'
 
-type MatchToken = {
+interface MatchToken {
   /** override response text */
   response?: string
   /** send real XMLHttpRequest falg, default false */
@@ -21,12 +21,25 @@ type MatchToken = {
   /** set response status, default 200 */
   status?: number
 }
-interface RequestInfo {
-  requestUrl: string
+
+interface CustomData extends MatchToken {
+  [key: string]: any
+}
+
+export interface RequestInfo {
+  url: string
   method: string
 }
 
-type HandleManager = (requestInfo: RequestInfo) => MatchToken | undefined
+export interface ResponseInfo {
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  response: any
+  responseText: string
+}
+
+export type HandleManager<T>  = (data: T, requestInfo: RequestInfo) => MatchToken | void
 
 let OriginXhr
 
@@ -74,13 +87,16 @@ export function createXhr() {
   return new OriginXhr()
 }
 
-interface FakeOptions {
+interface FakeOptions<T extends CustomData> {
   force?: boolean
-  handle?: HandleManager
-  interceptors?: InterceptManager
+  onMatch?: (requestInfo: RequestInfo) => T
+  onHandle?: HandleManager<T> 
+  onIntercept?: (data?: T) => InterceptManager | void
 }
  
-export function fake(options: FakeOptions = { handle: noop }) {
+export function fake<T>(options: FakeOptions<T> = { onHandle: noop, onMatch: noop }) {
+  unfake()
+
   const FakeXMLHttpRequestPrototype = {
     ...XHR_STATES,
     open(method: string, url: string, async: boolean, username: string, password: string) {
@@ -99,19 +115,31 @@ export function fake(options: FakeOptions = { handle: noop }) {
       }
       typeof async !== 'boolean' && (async = true)
 
-      const req: RequestInfo = { requestUrl: url, method }
+      const req: RequestInfo = { url, method }
   
-      // match success will fake, else send real xhr
-      const match = options.handle!(req)
-      if (match) {
+      // check filter option
+      if (options.onMatch && typeof options.onMatch !== 'function') {
+        throw 'expect `onMatch` to be a function'
+      }
+
+      // run filter func get data
+      const data = options.onMatch?.(req)
+      let matchToken = data as MatchToken
+
+      // data and matchToken exist will fake, else send real xhr
+      if (data && typeof options.onHandle === 'function') {
+        matchToken = options.onHandle(data, req) as any
+      }
+
+      if (matchToken) {
         // merge config
-        this[MKey] = { ...this[MKey], ...match, matched: true }
+        this[MKey] = { ...this[MKey], ...matchToken, matched: true }
 
         // send real xhr if true in fake xhr
         if (this[MKey].sendRealXhr) {
           this[XKey] = createXhr()
-          if (options.interceptors) {
-            this[HKey](this[XKey], options.interceptors)
+          if (options.onIntercept) {
+            this[HKey](this[XKey], options.onIntercept(data))
           }
           this[XKey].open(method, url, async, username, password)
         }
@@ -120,8 +148,8 @@ export function fake(options: FakeOptions = { handle: noop }) {
 
       this[XKey] = createXhr()
       // intercept
-      if (options.interceptors) {
-        this[HKey](this[XKey], options.interceptors)
+      if (options.onIntercept) {
+        this[HKey](this[XKey], options.onIntercept(data))
         this[XKey].open(method, url, async, username, password)
         return
       }
@@ -223,7 +251,6 @@ export function fake(options: FakeOptions = { handle: noop }) {
       return headers
     },
   }
-  
   Object.setPrototypeOf(FakeXMLHttpRequestPrototype, EventTarget)
   ;(FakeXMLHttpRequest as any).prototype = FakeXMLHttpRequestPrototype
 

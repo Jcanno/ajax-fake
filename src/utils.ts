@@ -2,6 +2,7 @@
 export function createSymbol(attr: string) {
   const key = `$$${attr}`;
   // when not suppert Symbol use $$-key
+  //@ts-ignore
   return window.Symbol ? Symbol.for(key) : key;
 }
 

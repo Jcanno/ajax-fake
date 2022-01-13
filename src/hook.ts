@@ -22,10 +22,10 @@ interface XMLHttpRequestProperty {
   withCredentials?: PropertyHandle<XMLHttpRequest['withCredentials']>
 }
 
-export interface InterceptManager extends XMLHttpRequestProperty, Omit<XMLHttpRequest, keyof XMLHttpRequestProperty> {
+export interface InterceptManager extends XMLHttpRequestProperty, Partial<Omit<XMLHttpRequest, keyof XMLHttpRequestProperty>> {
 }
 
-export function hook(xhr: XMLHttpRequest, config: InterceptManager) {
+export function hook(xhr: XMLHttpRequest, config: InterceptManager = {}) {
   if (!xhr) {
     return
   }
@@ -41,6 +41,7 @@ export function hook(xhr: XMLHttpRequest, config: InterceptManager) {
       })
     }
   }
+
   function configEvent(event, xhr: XMLHttpRequest) {
     const e: any = {}
     for (const attr in event) {
@@ -49,16 +50,18 @@ export function hook(xhr: XMLHttpRequest, config: InterceptManager) {
     e.target = e.currentTarget = xhr
     return e
   }
-  function wrapFunc(fun) {
+
+  function wrapFunc(attr: string) {
     return function (...args) {
-      if (config[fun]) {
-        const ret = (config[fun] as FuncHandle).call(this, args, xhr)
+      if (config[attr]) {
+        const ret = (config[attr] as FuncHandle).call(this, args, xhr)
         if (ret) return ret
       }
-      return xhr[fun].apply(xhr, args)
+      return xhr[attr].apply(xhr, args)
     }
   }
-  function setter(attr) {
+
+  function setter(attr: string) {
     return function (v) {
       const hook = config[attr]
       const key = createSymbol(attr)
@@ -71,6 +74,8 @@ export function hook(xhr: XMLHttpRequest, config: InterceptManager) {
             if (!ret) {
               v.call(this, e)
             }
+          } else {
+            v.call(this, e)
           }
         }
       } else {
@@ -83,7 +88,8 @@ export function hook(xhr: XMLHttpRequest, config: InterceptManager) {
       }
     }
   }
-  function getter(attr) {
+  
+  function getter(attr: string) {
     return function () {
       const key = createSymbol(attr)
       const v = this.hasOwnProperty(key) ? this[key] : xhr[attr]
