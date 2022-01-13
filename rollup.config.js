@@ -55,11 +55,40 @@ function createUMDConfig(input, output, production) {
   })
 }
 
+function createIifeConfig(input, output, production) {
+  return defineConfig({
+    input,
+    output: { file: output, format: 'iife', name: 'af' },
+    plugins: [
+      typescript({
+        tsconfig: 'tsconfig.json',
+        useTsconfigDeclarationDir: true,
+      }),
+      production
+        ? terser({
+            compress: {
+              pure_getters: true,
+              unsafe: true,
+              unsafe_comps: true,
+              warnings: false,
+            },
+            format: {
+              comments: RegExp(`${pkg.name}`),
+            },
+          })
+        : [],
+    ],
+  })
+}
+
 export default function () {
+  const input = 'src/index.ts'
   return [
-    createESMConfig('src/index.ts', 'es/index.js', false),
-    createESMConfig('src/index.ts', 'es/index.min.js', true),
-    createUMDConfig('src/index.ts', 'dist/ajax-fake.js', false),
-    createUMDConfig('src/index.ts', 'dist/ajax-fake.min.js', true),
+    createESMConfig(input, 'dist/es/index.js', false),
+    createESMConfig(input, 'dist/es/index.min.js', true),
+    createUMDConfig(input, 'dist/umd/ajax-fake.js', false),
+    createUMDConfig(input, 'dist/umd/ajax-fake.min.js', true),
+    createIifeConfig(input, 'dist/iife/ajax-fake.js', false),
+    createIifeConfig(input, 'dist/iife/ajax-fake.min.js', true),
   ]
 }

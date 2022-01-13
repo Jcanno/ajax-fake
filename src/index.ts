@@ -1,3 +1,4 @@
+import { XKey, EKey, ReqKey, ResKey, MKey, HKey } from './constants'
 import {
   XHR_ON_EVENT_HANDLERS,
   XHR_NON_ON_EVENT_HANDLERS,
@@ -6,71 +7,41 @@ import {
   XHR_REQUEST_PROPERTIES,
   HTTP_STATUS_CODES,
 } from './enums'
+import { getRequestDelay, noop } from './utils'
+import { EventTarget } from './event'
+import { hook, InterceptManager } from './hook'
 
-type MatchItem = {
+type MatchToken = {
   /** override response text */
   response?: string
-  /** if matched, go on mock, default false */
-  matched?: boolean
-  /** send real XMLHttpRequest flag, default false */
+  /** send real XMLHttpRequest falg, default false */
   sendRealXhr?: boolean
   /** set request delay, default 500 - 1000 */
   delay?: number
   /** set response status, default 200 */
   status?: number
 }
-
-type onRequestMatchFn = (requestInfo: { requestUrl: string; requestMethod: string }) => MatchItem
-
-interface FakeXhr extends XMLHttpRequest {
-  config: Map<'onRequestMatch', onRequestMatchFn>
+interface RequestInfo {
+  requestUrl: string
+  method: string
 }
 
-/**
- * simulate request time, range 500 - 1000
- * @returns delay
- */
-const getRequestDelay = () => {
-  const randomNum = Math.random()
-  return (randomNum > 0.5 ? randomNum : randomNum + 0.5) * 1000
+type HandleManager = (requestInfo: RequestInfo) => MatchToken | undefined
+
+let OriginXhr
+
+const defaultValue: MatchToken & { matched: boolean } = {
+  // mark whether matched
+  matched: false,
+  response: '',
+  sendRealXhr: false,
+  delay: 0,
+  status: 200,
 }
 
-const ORIGIN_XHR = Symbol()
-const MATCHITEM = Symbol()
-
-// event listener
-const EventTarget = {
-  addEventListener: function addEventListener(type, handle) {
-    const events = this._events[type] || (this._events[type] = [])
-    events.push(handle)
-  },
-  removeEventListener: function removeEventListener(type, handle) {
-    const handles = this._events[type] || []
-
-    let i = handles.length - 1
-    while (i >= 0) {
-      if (handles[i] === handle) {
-        handles.splice(i, 1)
-      }
-      i--
-    }
-  },
-  dispatchEvent: function dispatchEvent(event: Event) {
-    const handles = this._events[event.type] || []
-    for (let i = 0; i < handles.length; i++) {
-      handles[i].call(this, event)
-    }
-
-    const onType = `on${event.type}`
-    if (this[onType]) this[onType](event)
-  },
-}
-
-const FakeXMLHttpRequest = function FakeXMLHttpRequest() {
+const FakeXMLHttpRequest = function () {
   // init fake xhr properties
-  XHR_ON_EVENT_HANDLERS.forEach((event) => {
-    this[event] = null
-  })
+  XHR_ON_EVENT_HANDLERS.forEach(event => this[event] = null)
   this.readyState = XHR_STATES.UNSENT
   this.response = ''
   this.responseText = ''
@@ -84,60 +55,81 @@ const FakeXMLHttpRequest = function FakeXMLHttpRequest() {
   this.upload = Object.create(EventTarget)
 
   // private properties
-  this._xhr = null
-  this._events = {}
-  this._requestHeaders = {}
-  this._responseHeaders = {}
-  this[MATCHITEM] = {
-    matched: false,
-    response: null,
-    sendRealXhr: false,
-    timeout: 'default',
-    status: 200,
-  }
-} as unknown as FakeXhr
+  this[XKey] = null             // $$xhr
+  this[EKey] = {}               // $$events
+  this[ReqKey] = {}             // $$requestHeaders
+  this[ResKey] = {}             // $$responseHeaders
+  this[MKey] = defaultValue     // $$matchItem
+  this[HKey] = hook             // $$hook
+} as unknown as XMLHttpRequest
 
-function createXhr() {
-  const OriginXhrConstructor = window[ORIGIN_XHR] || window.XMLHttpRequest
-  const xhr = new OriginXhrConstructor()
-  return xhr
+// get origin xhr
+export function getOriginXHR(): typeof XMLHttpRequest {
+  return OriginXhr ?? window.XMLHttpRequest
 }
 
-FakeXMLHttpRequest.config = new Map()
+// create origin xhr
+export function createXhr() {
+  const OriginXhr = getOriginXHR()
+  return new OriginXhr()
+}
 
-const FakeXMLHttpRequestPrototype = {
-  ...XHR_STATES,
-  open(method, url, async, username, password) {
-    const onRequestMatch = FakeXMLHttpRequest.config.get('onRequestMatch')
-    if (typeof onRequestMatch === 'function') {
-      try {
-        this[MATCHITEM] = Object.assign(
-          {},
-          this[MATCHITEM],
-          onRequestMatch({ requestMethod: method, requestUrl: url }),
-        )
-      } catch (error) {}
-    }
-
-    // sync property by real xhr bind to FakeXMLHttpRequest
-    const bindEventHandle = function handle(event, xhr) {
-      for (let i = 0; i < XHR_RESPONSE_PROPERTIES.length; i++) {
-        try {
-          this[XHR_RESPONSE_PROPERTIES[i]] = xhr[XHR_RESPONSE_PROPERTIES[i]]
-        } catch (e) {}
+interface FakeOptions {
+  force?: boolean
+  handle?: HandleManager
+  interceptors?: InterceptManager
+}
+ 
+export function fake(options: FakeOptions = { handle: noop }) {
+  const FakeXMLHttpRequestPrototype = {
+    ...XHR_STATES,
+    open(method: string, url: string, async: boolean, username: string, password: string) {
+      // simulate xhr state change
+      this.readyState = XHR_STATES.OPENED
+      this.dispatchEvent(new Event('readystatechange' /*, false, false, this*/))
+  
+      // sync property by real xhr bind to FakeXMLHttpRequest
+      const bindEventHandle = (event, xhr) => {
+        for (let i = 0; i < XHR_RESPONSE_PROPERTIES.length; i++) {
+          try {
+            this[XHR_RESPONSE_PROPERTIES[i]] = xhr[XHR_RESPONSE_PROPERTIES[i]]
+          } catch (e) { }
+        }
+        this.dispatchEvent(new Event(event.type /*, false, false, that*/))
       }
-      this.dispatchEvent(new Event(event.type /*, false, false, that*/))
-    }.bind(this)
-    typeof async !== 'boolean' && (async = true)
+      typeof async !== 'boolean' && (async = true)
 
-    // if no matched, send real xhr
-    if (!this[MATCHITEM]?.matched) {
-      this._xhr = createXhr()
+      const req: RequestInfo = { requestUrl: url, method }
+  
+      // match success will fake, else send real xhr
+      const match = options.handle!(req)
+      if (match) {
+        // merge config
+        this[MKey] = { ...this[MKey], ...match, matched: true }
+
+        // send real xhr if true in fake xhr
+        if (this[MKey].sendRealXhr) {
+          this[XKey] = createXhr()
+          if (options.interceptors) {
+            this[HKey](this[XKey], options.interceptors)
+          }
+          this[XKey].open(method, url, async, username, password)
+        }
+        return
+      }
+
+      this[XKey] = createXhr()
+      // intercept
+      if (options.interceptors) {
+        this[HKey](this[XKey], options.interceptors)
+        this[XKey].open(method, url, async, username, password)
+        return
+      }
 
       // listen real xhr event handler, sync real xhr properties to fake xhr
       XHR_NON_ON_EVENT_HANDLERS.forEach((handler) => {
-        this._xhr.addEventListener(handler, function (event) {
-          // below this means this._xhr
+        this[XKey].addEventListener(handler, function (event) {
+          // below this means this[xKey]
           bindEventHandle(event, this)
         })
         // bind this means FakeXMLHttpRequest
@@ -146,145 +138,118 @@ const FakeXMLHttpRequestPrototype = {
       // sync with timeout / withCredentials
       XHR_REQUEST_PROPERTIES.forEach((property) => {
         try {
-          this._xhr[property] = this[property]
-        } catch (e) {}
+          this[XKey][property] = this[property]
+        } catch (e) { }
       })
 
-      this._xhr.open(method, url, async, username, password)
-      return
-    }
-
-    // simulate xhr state change
-    this.readyState = XHR_STATES.OPENED
-    this.dispatchEvent(new Event('readystatechange' /*, false, false, this*/))
-    // send real xhr if true in fake xhr
-    if (this[MATCHITEM]?.sendRealXhr) {
-      this._xhr = createXhr()
-      this._xhr.open(method, url, async, username, password)
-    }
-  },
-  send(data) {
-    const { matched, response, sendRealXhr, delay, status } = this[MATCHITEM] as MatchItem
-
-    // no matched, just send data
-    if (!matched) {
-      this._xhr.send(data)
-      return
-    }
-
-    this.dispatchEvent(new Event('loadstart' /*, false, false, this*/))
-    this.readyState = XHR_STATES.HEADERS_RECEIVED
-    this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
-    this.readyState = XHR_STATES.LOADING
-    this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
-    sendRealXhr && this._xhr.send(data)
-
-    setTimeout(
-      () => {
-        this.status = HTTP_STATUS_CODES[status] ? status : 200
-        this.statusText = HTTP_STATUS_CODES[status] ?? HTTP_STATUS_CODES[200]
-        this.responseText = this.response =
-          typeof response === 'object' ? JSON.stringify(response) : response
-
-        this.readyState = XHR_STATES.DONE
-        this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
-        this.dispatchEvent(new Event('load' /*, false, false, that*/))
-        this.dispatchEvent(new Event('loadend' /*, false, false, that*/))
-      },
-      typeof delay === 'number' ? delay : getRequestDelay(),
-    )
-  },
-  abort: function abort() {
-    // check matched
-    if (!this[MATCHITEM]?.matched) {
-      this._xhr.abort()
-      return
-    }
-
-    this.readyState = XHR_STATES.UNSENT
-    this.dispatchEvent(new Event('abort'))
-    this.dispatchEvent(new Event('error'))
-  },
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  overrideMimeType: function (/*mime*/) {},
-  // set request header
-  setRequestHeader: function (name, value) {
-    // check matched or sendRealXhr is true
-    if (!this[MATCHITEM]?.matched || this[MATCHITEM]?.sendRealXhr) {
-      this._xhr.setRequestHeader(name, value)
-      return
-    }
-
-    const requestHeaders = this._requestHeaders
-    if (requestHeaders[name]) {
-      requestHeaders[name] += ',' + value
-    } else {
-      requestHeaders[name] = value
-    }
-  },
-  getResponseHeader: function (name) {
-    if (!this[MATCHITEM]?.matched) {
-      return this._xhr.getResponseHeader(name)
-    }
-
-    return this._responseHeaders[name.toLowerCase()]
-  },
-  getAllResponseHeaders: function () {
-    if (!this[MATCHITEM]?.matched) {
-      return this._xhr.getAllResponseHeaders()
-    }
-
-    const responseHeaders = this._responseHeaders
-    let headers = ''
-    for (const h in responseHeaders) {
-      if (!responseHeaders.hasOwnProperty(h)) continue
-      headers += h + ': ' + responseHeaders[h] + '\r\n'
-    }
-    return headers
-  },
-}
-
-Object.setPrototypeOf(FakeXMLHttpRequestPrototype, EventTarget)
-;(FakeXMLHttpRequest as any).prototype = FakeXMLHttpRequestPrototype
-
-export function fake(
-  options: {
-    force?: boolean
-    onRequestMatch?: onRequestMatchFn
-  } = {},
-) {
-  const { force = false, onRequestMatch } = options
-  if (typeof onRequestMatch === 'function') {
-    FakeXMLHttpRequest.config.set('onRequestMatch', onRequestMatch)
+      this[XKey].open(method, url, async, username, password)
+    },
+    send(data) {
+      const { matched, response, sendRealXhr, delay, status } = this[MKey] as MatchToken & { matched: boolean }
+  
+      // no matched, just send data
+      if (!matched) {
+        this[XKey].send(data)
+        return
+      }
+  
+      this.dispatchEvent(new Event('loadstart' /*, false, false, this*/))
+      this.readyState = XHR_STATES.HEADERS_RECEIVED
+      this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
+      this.readyState = XHR_STATES.LOADING
+      this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
+      sendRealXhr && this[XKey].send(data)
+  
+      setTimeout(
+        () => {
+          this.status = HTTP_STATUS_CODES[status!] ? status : 200
+          this.statusText = HTTP_STATUS_CODES[status!] ?? HTTP_STATUS_CODES[200]
+          this.responseText = this.response = typeof response === 'object' ? JSON.stringify(response) : response
+  
+          this.readyState = XHR_STATES.DONE
+          this.dispatchEvent(new Event('readystatechange' /*, false, false, that*/))
+          this.dispatchEvent(new Event('load' /*, false, false, that*/))
+          this.dispatchEvent(new Event('loadend' /*, false, false, that*/))
+        },
+        typeof delay === 'number' ? delay : getRequestDelay(),
+      )
+    },
+    abort() {
+      // check matched
+      if (!this[MKey].matched) {
+        this[XKey].abort()
+        return
+      }
+  
+      this.readyState = XHR_STATES.UNSENT
+      this.dispatchEvent(new Event('abort'))
+      this.dispatchEvent(new Event('error'))
+    },
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    overrideMimeType: noop,
+    // set request header
+    setRequestHeader(name: string, value: string) {
+      // check matched or sendRealXhr is true
+      if (!this[MKey].matched || this[MKey].sendRealXhr) {
+        this[XKey].setRequestHeader(name, value)
+        return
+      }
+  
+      const requestHeaders = this[ReqKey]
+      if (requestHeaders[name]) {
+        requestHeaders[name] += ',' + value
+      } else {
+        requestHeaders[name] = value
+      }
+    },
+    getResponseHeader(name: string) {
+      if (!this[MKey].matched) {
+        return this[XKey].getResponseHeader(name)
+      }
+  
+      return this[ResKey][name.toLowerCase()]
+    },
+    getAllResponseHeaders() {
+      if (!this[MKey].matched) {
+        return this[XKey].getAllResponseHeaders()
+      }
+  
+      const responseHeaders = this[ResKey]
+      let headers = ''
+      for (const h in responseHeaders) {
+        if (!responseHeaders.hasOwnProperty(h)) continue
+        headers += h + ': ' + responseHeaders[h] + '\r\n'
+      }
+      return headers
+    },
   }
+  
+  Object.setPrototypeOf(FakeXMLHttpRequestPrototype, EventTarget)
+  ;(FakeXMLHttpRequest as any).prototype = FakeXMLHttpRequestPrototype
 
   // cache origin XHR
-  window[ORIGIN_XHR] = window.XMLHttpRequest
+  OriginXhr = window.XMLHttpRequest
   // we don't want other code modify xhr with force
-  if (typeof force === 'boolean' && force) {
+  if (typeof options.force === 'boolean' && options.force) {
     Object.defineProperty(window, 'XMLHttpRequest', {
       value: FakeXMLHttpRequest,
       enumerable: true,
       writable: false,
     })
   } else {
-    ;(window as any).XMLHttpRequest = FakeXMLHttpRequest
+    window.XMLHttpRequest = FakeXMLHttpRequest as any
   }
 }
 
 export function unfake() {
-  if (!!window[ORIGIN_XHR]) {
+  if (!!OriginXhr) {
     Object.defineProperty(window, 'XMLHttpRequest', {
-      value: window[ORIGIN_XHR],
+      value: OriginXhr,
       enumerable: true,
       writable: true,
     })
-    window[ORIGIN_XHR] = null
+    OriginXhr = null
   }
-}
-
-export function getOriginXHR() {
-  return window[ORIGIN_XHR] ?? window.XMLHttpRequest
 }
 
 export { FakeXMLHttpRequest }

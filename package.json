@@ -2,21 +2,21 @@
   "name": "ajax-fake",
   "version": "0.0.7",
   "description": "Ajax Facker",
-  "main": "dist/ajax-fake.min.js",
-  "module": "es/index.js",
+  "main": "dist/umd/ajax-fake.min.js",
+  "module": "dist/es/index.js",
   "scripts": {
     "build": "rollup -c",
     "prebuild": "rm -rf es dist types",
     "tsc": "tsc"
   },
-  "types": "types/index.d.ts",
-  "typings": "types/index.d.ts",
-  "unpkg": "dist/ajax-fake.min.js",
-  "jsdelivr": "dist/ajax-fake.min.js",
+  "types": "dist/types/index.d.ts",
+  "typings": "dist/types/index.d.ts",
+  "unpkg": "dist/umd/ajax-fake.min.js",
+  "jsdelivr": "dist/umd/ajax-fake.min.js",
   "files": [
     "dist",
-    "es",
-    "types"
+    "README",
+    "README-CH"
   ],
   "license": "MIT",
   "author": "Jacano",
